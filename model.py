@@ -112,7 +112,7 @@ def _preprocess_data(data):
     df_to_train.columns=[i.replace('PlacementDayofMonth','DayofMonth') for i in df_to_train.columns]
     df_to_train.columns=[i.replace('PlacementWeekday(Mo=1)','Weekday') for i in df_to_train.columns]
 
-    df_to_train = pd.get_dummies(df_to_train,columns=['PickupTime', 'PersonalorBusiness','PlatformType'], drop_first=1 )
+    #df_to_train = pd.get_dummies(df_to_train,columns=['PickupTime', 'PersonalorBusiness','PlatformType'], drop_first=1 )
 
     df_to_train['Temperature'] = df_to_train['Temperature'].astype(float)
     df_to_train['PickupLat'] = df_to_train['PickupLat'].astype(float)
