@@ -136,9 +136,11 @@ def _preprocess_data(data):
     # convert the scaled predictor values into a dataframe
     X_standardise = pd.DataFrame(X_scaled,columns=X.columns)
 
+    predictor_vector = X_standardise.copy()
+
     # ------------------------------------------------------------------------
 
-    return X_standardise
+    return predictor_vector 
 
 def load_model(path_to_model:str):
     """Adapter function to load our pretrained model into memory.
