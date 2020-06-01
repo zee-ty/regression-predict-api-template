@@ -227,4 +227,4 @@ def make_prediction(data, model):
     # Perform prediction with model and preprocessed data.
     prediction = model.predict(prep_data)
     # Format as list for output standerdisation.
-    return prediction.tolist()
+    return prediction[0].tolist()
