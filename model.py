@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import json
+from sklearn.preprocessing import StandardScaler
 
 def _preprocess_data(data):
     """Private helper function to preprocess data for model prediction.
@@ -57,136 +58,134 @@ def _preprocess_data(data):
     # The code below is for demonstration purposes only. You will not
     # receive marks for submitting this code in an unchanged state.
     # ---------------------------------------------------------------
-
+    zindi2_df = feature_vector_df.copy()
     # ----------- Replace this code with your own preprocessing steps --------
-    
-  
-    def clean_column_names(df): 
+    zindi2_df.columns=[i.replace(' ','_') for i in zindi2_df.columns]
+    zindi2_df.columns=[i.replace('_','') for i in zindi2_df.columns]
+    zindi2_df.columns=[i.replace('-','') for i in zindi2_df.columns]
+    zindi2_df.drop('Precipitationinmillimeters',axis=1,inplace=True)
+    zindi2_df["Temperature"].fillna(zindi2_df['Temperature'].mean(), inplace=True)
 
-        """ Function removes special characters from the dataframe
-            column headings. 
-            
-            Takes in a dataframe as argument.
+    zindi2_df.drop('VehicleType',axis=1,inplace=True)
+    zindi2_df['DayofMonth'] = zindi2_df['PlacementDayofMonth']
+    zindi2_df['Weekday'] = zindi2_df['ConfirmationWeekday(Mo=1)']
 
-            Removes:' ','_','_','','-',''
-        """
-        df.columns=[i.replace(' ','_') for i in df.columns]
-        df.columns=[i.replace('_','') for i in df.columns]
-        df.columns=[i.replace('-','') for i in df.columns]
-        
-        return df
+    zindi2_df.drop('PlacementDayofMonth',axis=1,inplace=True)
+    zindi2_df.drop('PlacementWeekday(Mo=1)',axis=1,inplace=True)
+    zindi2_df.drop('ConfirmationDayofMonth',axis=1,inplace=True)
+    zindi2_df.drop('ConfirmationWeekday(Mo=1)',axis=1,inplace=True)
+    zindi2_df.drop('ArrivalatPickupDayofMonth',axis=1,inplace=True)
+    zindi2_df.drop('ArrivalatPickupWeekday(Mo=1)',axis=1,inplace=True)
+    zindi2_df.drop('PickupDayofMonth',axis=1,inplace=True)
+    zindi2_df.drop('PickupWeekday(Mo=1)',axis=1,inplace=True)
+    #zindi2_df.drop('ArrivalatDestinationDayofMonth',axis=1,inplace=True)
+    #zindi2_df.drop('ArrivalatDestinationWeekday(Mo=1)',axis=1,inplace=True)
 
-    def drop_columns(input_df, threshold, unique_value_threshold): 
-        """ Code will drop columns that are over a specified threshold
-            for null values and unique values
+    #Drop order no and User ID since they do not impact logistics
+    #zindi2_df.drop('OrderNo',axis=1,inplace=True)
+    zindi2_df.drop('UserId',axis=1,inplace=True)
+    zindi2_df.drop('RiderId',axis=1,inplace=True)
 
-            Takes in a dataframe as argument, null threshold and 
-            unique value threshold.
-        """
-        func1_df = input_df.copy()
+    time=[]
 
-        rows = len(func1_df)
-        for column in func1_df:
-            x = ((func1_df[column].isnull().sum())/(rows))*100
-            y = ((func1_df[column].nunique(dropna=True))/(rows)*100)
-            if x > threshold or y < unique_value_threshold:
-                func1_df = func1_df.drop(column, 1)
-        return func1_df
+    for i in range(len(zindi2_df['PickupTime'])):
 
-    def impute(input_df, column, choice='median'): 
-        """ Code will impute mean or median as specified for a 
-            specified column
+        idx=zindi2_df['PickupTime'][i].index(':')
 
-            Takes in a dataframe as argument, column name and
-            choice between mean or median.
-        """
-        
-        mean_df = input_df.copy()
-        median_df = input_df.copy()
-        
-        if choice in ['median', 'mean']:
-            if choice == 'mean':
-                mean_df[column].fillna(round(median_df[column].mean(), 1), inplace=True)
-                return mean_df
-            
-            else:
-                median_df[column].fillna(round(median_df[column].median(), 1), inplace=True)
-                return median_df
-
+        if zindi2_df['PickupTime'][i][-2:]=='AM' and int(zindi2_df['PickupTime'][i][:idx]) in [3,4,5,6,7,8,9]:
+            time.append('EarlyMorning')
+        elif zindi2_df['PickupTime'][i][-2:]=='AM' and int(zindi2_df['PickupTime'][i][:idx]) in [10,11]:
+            time.append('LateMorning')
+        elif zindi2_df['PickupTime'][i][-2:]=='PM' and int(zindi2_df['PickupTime'][i][:idx]) in [12,1,2,3]:
+            time.append('EarlyAfternoon')
+        elif zindi2_df['PickupTime'][i][-2:]=='PM' and int(zindi2_df['PickupTime'][i][:idx]) in [4,5,6,7]:
+            time.append('Late')
+        elif zindi2_df['PickupTime'][i][-2:]=='AM':
+            time.append('EarlyMorning')
         else:
-            raise ValueError ("choose median or mean as a choice parameter")
+            time.append('EarlyAfternoon')
+    zindi2_df['PickupTime']=time
 
-    def column_replacer(df, replaced, new): 
-        """ Code will replace a column name with another as specified and
-            add the new identical column on at the end.
+    zindi2_df.drop('PlacementTime',axis=1,inplace=True)
+    zindi2_df.drop('ConfirmationTime',axis=1,inplace=True)
+    zindi2_df.drop('ArrivalatPickupTime',axis=1,inplace=True)
+    #zindi2_df.drop('ArrivalatDestinationTime',axis=1,inplace=True)
+    zindi2_df.drop('OrderNo',axis=1,inplace=True)
+    zindi2_df.rename(columns={"Distance(KM)": "Distance"}, inplace=True)
 
-            Takes in a dataframe as argument, column name and
-            a new name to replace it with.
-        """    
-        
-        df[new] = df[replaced]
-        return df
+    zindi4_df = zindi2_df.copy()
 
-    def drop_specific_columns(df, cols): 
-        """ Code will drop columns specified in the "cols"
-            list.
-
-            Takes in a dataframe as argument and a list of column names
-            to drop.
-        """
-        
-        df2 = df.copy()
-        for column in df2:
-            if column in cols:
-                df2 = df2.drop(column, 1)
-        return df2
-
-    def categorical_time_changer(df): 
-        """ Code will return categorical values for the timestamp columns.
-            Unique code for the Zindi challenge.
-
-            Takes in a dataframe as argument.
-        """
-        train2_df = df.copy()
-        time=[]
-        for i in range(len(train2_df['PickupTime'])):
-
-            idx=train2_df['PickupTime'][i].index(':')
-
-            if train2_df['PickupTime'][i][-2:]=='AM' and int(train2_df['PickupTime'][i][:idx]) in [3,4,5,6,7,8,9]:
-                time.append('EarlyMorning')
-            elif train2_df['PickupTime'][i][-2:]=='AM' and int(train2_df['PickupTime'][i][:idx]) in [10,11]:
-                time.append('LateMorning')
-            elif train2_df['PickupTime'][i][-2:]=='PM' and int(train2_df['PickupTime'][i][:idx]) in [12,1,2,3]:
-                time.append('EarlyAfternoon')
-            elif train2_df['PickupTime'][i][-2:]=='PM' and int(train2_df['PickupTime'][i][:idx]) in [4,5,6,7]:
-                time.append('Late')
-            elif train2_df['PickupTime'][i][-2:]=='AM':
-                time.append('EarlyMorning')
-            else:
-                time.append('EarlyAfternoon')
-
-        train2_df['PickupTime']=time
-        return train2_df
     
-    feature_vector_df = clean_column_names(feature_vector_df)
-    feature_vector_df = drop_columns(feature_vector_df, threshold = 95, unique_value_threshold = 0)
-    feature_vector_df = impute(feature_vector_df, column='Temperature', choice='mean')
-    feature_vector_df = column_replacer(feature_vector_df, replaced = 'PlacementDayofMonth', new='DayofMonth')
-    feature_vector_df = column_replacer(feature_vector_df, replaced = 'ConfirmationWeekday(Mo=1)', new='Weekday')
-    #we need to keep the order number
-    cols = ['VehicleType', 'PlacementDayofMonth','PlacementWeekday(Mo=1)','ConfirmationDayofMonth','ConfirmationWeekday(Mo=1)', 'ArrivalatPickupDayofMonth','ArrivalatPickupWeekday(Mo=1)',
-            'PickupDayofMonth','PickupWeekday(Mo=1)', 'ArrivalatDestinationDayofMonth','ArrivalatDestinationWeekday(Mo=1)','UserId', 'RiderId' ]
-    feature_vector_df = drop_specific_columns(feature_vector_df, cols)
-    feature_vector_df = categorical_time_changer(feature_vector_df)
-    cols = ['PlacementTime','ConfirmationTime','ArrivalatPickupTime','ArrivalatDestinationTime']
-    feature_vector_df = drop_specific_columns(feature_vector_df, cols)
-    #feature_vector_df = pd.get_dummies(feature_vector_df,columns=['PickupTime', 'PersonalorBusiness','PlatformType'], drop_first=1 )
-    feature_vector_df.rename(columns={"Distance(KM)": "Distance"}, inplace=True)
-    feature_vector_df.drop('OrderNo',axis=1,inplace=True)
+
+    #####################################
+    # get dummies manually
+    if zindi4_df['PlatformType'].values[0] == 1:
+        zindi4_df['PlatformType_2'] = 0
+        zindi4_df['PlatformType_3'] = 0
+        zindi4_df['PlatformType_4'] = 0
+
+    elif zindi4_df['PlatformType'].values[0] == 2:
+        zindi4_df['PlatformType_2'] = 1
+        zindi4_df['PlatformType_3'] = 0
+        zindi4_df['PlatformType_4'] = 0
+
+    elif zindi4_df['PlatformType'].values[0] == 3:
+        zindi4_df['PlatformType_2'] = 0
+        zindi4_df['PlatformType_3'] = 1
+        zindi4_df['PlatformType_4'] = 0
+
+    elif zindi4_df['PlatformType'].values[0] == 4:
+        zindi4_df['PlatformType_2'] = 0
+        zindi4_df['PlatformType_3'] = 0
+        zindi4_df['PlatformType_4'] = 1
+
+    if zindi4_df['PersonalorBusiness'].values[0] == 'Personal':
+        zindi4_df['PersonalorBusiness_Personal'] = 1
+    else:
+        zindi4_df['PersonalorBusiness_Personal'] = 0
+    
+    if zindi4_df['PickupTime'].values[0] == 'EarlyAfternoon':
+        zindi4_df['PickupTime_EarlyMorning'] = 0
+        zindi4_df['PickupTime_Late'] = 0
+        zindi4_df['PickupTime_LateMorning'] = 0
+
+    elif zindi4_df['PickupTime'].values[0] == 'EarlyMorning':
+        zindi4_df['PickupTime_EarlyMorning'] = 1
+        zindi4_df['PickupTime_Late'] = 0
+        zindi4_df['PickupTime_LateMorning'] = 0
+
+    elif zindi4_df['PickupTime'].values[0] == 'Late':
+        zindi4_df['PickupTime_EarlyMorning'] = 0
+        zindi4_df['PickupTime_Late'] = 1
+        zindi4_df['PickupTime_LateMorning'] = 0
+
+    elif zindi4_df['PickupTime'].values[0] == 'LateMorning':
+        zindi4_df['PickupTime_EarlyMorning'] = 0
+        zindi4_df['PickupTime_Late'] = 0
+        zindi4_df['PickupTime_LateMorning'] = 1
+    
+
+    zindi4_df.drop('PickupTime',axis=1,inplace=True)
+    zindi4_df.drop('PersonalorBusiness',axis=1,inplace=True)
+    zindi4_df.drop('PlatformType',axis=1,inplace=True)
+    #####################################
+    #scaler here
+    scale_model = load_model(
+    path_to_model='assets/trained-models/FinalSetupScaler.pkl')
+    
+    X = zindi4_df
+    zindi4_df = scale_model.transform(zindi4_df)
+    X_standardise = pd.DataFrame(zindi4_df,columns=X.columns)
+    predict_vector = X_standardise.copy()
+        #['Distance', 'Temperature', 'PickupLat', 'PickupLong', 'DestinationLat',
+       #'DestinationLong', 'NoOfOrders', 'Age', 'AverageRating', 'NoofRatings',
+       #'DayofMonth', 'Weekday', 'PickupTime_EarlyMorning', 'PickupTime_Late',
+       #'PickupTime_LateMorning', 'PersonalorBusiness_Personal',
+       #'PlatformType_2', 'PlatformType_3', 'PlatformType_4']]
+    
     # ------------------------------------------------------------------------
 
-    return feature_vector_df 
+    return predict_vector
 
 def load_model(path_to_model:str):
     """Adapter function to load our pretrained model into memory.
